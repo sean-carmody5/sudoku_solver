@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, request, jsonify
 from combined_solver import solve_sudoku
+import numpy as np
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -32,16 +33,17 @@ def allowed_file(filename):
 
 @app.route('/solve', methods=['POST'])
 def solve(problem, manual_bool):
-	# Here, you would call your Sudoku solving functions
-	# You'll get the data from the request object
+	# Assume the board is sent as a JSON array and manual_input as a boolean
 	data = request.get_json()
-	# puzzle = data['puzzle']
-	solve_sudoku(problem=problem, manual_input=manual_bool)
+	board = np.array(data['board'])
+	manual_input = data['manual_input']
 
-	# Call your Sudoku solving functions here and get the solution
+	# Call the solve_sudoku function
+	solved_board = solve_sudoku(board, manual_input)
 
-	solution = []  # Replace with your Sudoku solution
-	return jsonify(solution=solution)
+	# Convert the numpy array to a JSON array and return it
+	solved_board_list = solved_board.tolist()
+	return jsonify(solved_board=solved_board_list)
 
 
 if __name__ == '__main__':
