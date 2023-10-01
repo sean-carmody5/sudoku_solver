@@ -31,11 +31,12 @@ def allowed_file(filename):
 		   filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/solve', methods=['POST'])
-def solve():
+def solve(problem, manual_bool):
 	# Here, you would call your Sudoku solving functions
 	# You'll get the data from the request object
 	data = request.get_json()
 	# puzzle = data['puzzle']
+	solve_sudoku(problem=problem, manual_input=manual_bool)
 
 	# Call your Sudoku solving functions here and get the solution
 
