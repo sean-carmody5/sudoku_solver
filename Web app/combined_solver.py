@@ -10,17 +10,12 @@ Logic:
 4) If there is a value in poss_values that is not contained in any single one of these, populate the empty element with this value.
 
 """
-import os
-# os.environ["OMP_NUM_THREADS"] = "1"
-# os.environ["OMP_THREAD_LIMIT"] = "1"
-# os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-import sys
+
 import io
 import easyocr
 import keras_ocr
 import numpy as np
 import cv2
-from pprint import pprint
 import math
 import time
 import pytesseract
@@ -31,37 +26,13 @@ import contextlib
 import concurrent.futures
 import pygame
 from moviepy.editor import *
-from config import (image, THRESHOLD, POSSIBLE_CHARACTERS, CUSTOM_CONFIG, MANUAL_INPUT, GRID_SIZE)
 
+POSSIBLE_CHARACTERS = list(map(str, range(0, 10))) + [chr(x) for x in (range(ord('A'), ord('G')))]
+CUSTOM_CONFIG = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEF'
+THRESHOLD = 50   # threshold for white pixels - indicating a character present in a box
+reader = easyocr.Reader(['en'], gpu=False)
+reader2 = keras_ocr.recognition.Recognizer()
 
-# problem = np.array(
-# 	[[' ', '9', ' ', '3', ' ', ' ', ' ', 'A', ' ', '0', 'B', ' ', ' ', '2', ' ', ' '],
-# 	[' ', 'F', ' ', ' ', ' ', ' ', 'C', '4', 'D', '9', ' ', '7', ' ', ' ', 'B', '5'],
-# 	[' ', '8', 'E', ' ', ' ', ' ', '5', '9', ' ', ' ', '2', 'A', 'C', '7', ' ', '3'],
-# 	['B', ' ', ' ', '5', '3', ' ', ' ', '0', 'C', 'E', '8', '6', '1', ' ', 'A', ' '],
-# 	[' ', '5', ' ', ' ', '6', ' ', ' ', ' ', ' ', 'B', ' ', ' ', '3', ' ', '4', 'E'],
-# 	['8', ' ', ' ', '1', ' ', ' ', 'E', 'F', ' ', 'A', ' ', 'C', ' ', ' ', '9', '0'],
-# 	['3', ' ', 'D', 'E', ' ', ' ', ' ', ' ', '6', 'F', ' ', '9', '7', '8', ' ', ' '],
-# 	['9', ' ', ' ', 'C', '1', 'A', 'B', '7', ' ', ' ', ' ', ' ', ' ', 'F', '6', '2'],
-# 	['F', 'E', '8', ' ', ' ', ' ', ' ', ' ', '9', '3', '7', '4', 'A', ' ', ' ', '1'],
-# 	[' ', ' ', '5', '4', '9', ' ', '3', '2', ' ', ' ', ' ', ' ', 'E', 'D', ' ', '8'],
-# 	['0', 'D', ' ', ' ', 'F', ' ', '4', ' ', 'E', '2', ' ', ' ', '9', ' ', ' ', '7'],
-# 	['C', '7', ' ', '9', ' ', ' ', '0', ' ', ' ', ' ', ' ', 'F', ' ', ' ', '2', ' '],
-# 	[' ', 'C', ' ', '8', '2', '4', '1', '3', 'A', ' ', ' ', 'D', 'F', ' ', ' ', '9'],
-# 	['2', ' ', '1', '7', '0', '5', ' ', ' ', 'B', '4', ' ', ' ', ' ', '6', '3', ' '],
-# 	['5', '6', ' ', ' ', 'D', ' ', 'F', 'E', '3', '7', ' ', ' ', ' ', ' ', '0', ' '],
-# 	[' ', ' ', 'F', ' ', ' ', 'B', 'A', ' ', '2', ' ', ' ', ' ', '5', ' ', 'E', ' ']]
-# )
-#
-# problem = np.array([[' ', ' ', '1', ' ', '6', ' ', ' ', ' ', ' '],
-#                     [' ', ' ', ' ', ' ', ' ', '7', ' ', '8', ' '],
-# 					['3', ' ', ' ', ' ', ' ', ' ', ' ', '1', ' '],
-# 					['4', '7', ' ', '2', ' ', '3', ' ', ' ', ' '],
-# 					['2', ' ', ' ', ' ', ' ', ' ', ' ', '6', ' '],
-# 					[' ', ' ', '3', '5', ' ', ' ', ' ', ' ', '7'],
-# 					[' ', '9', ' ', ' ', ' ', ' ', ' ', ' ', '5'],
-# 					[' ', ' ', ' ', '4', ' ', '2', '8', ' ', ' '],
-# 					[' ', ' ', '7', ' ', '9', ' ', ' ', ' ', ' ']])
 
 def play_video_on_loop(video_file, frame_delay_ms=20, scale_factor=0.5):
 	cap = cv2.VideoCapture(video_file)
@@ -148,7 +119,7 @@ def decide_block(x, y, block_size):
 	return block_row_edge, block_col_edge
 
 
-def return_poss_for_element(x, y, characters, block_size):
+def return_poss_for_element(problem, x, y, characters, block_size):
 	row = problem[x]
 	possible_in_row = check_row(row, characters)
 	possible_in_col = check_column(problem[:, y], characters)
@@ -160,42 +131,42 @@ def return_poss_for_element(x, y, characters, block_size):
 	return possible_values
 
 
-def cross_check_row(x, y, characters, block_size):
+def cross_check_row(problem, x, y, characters, block_size):
 	# return all the possible numbers that can fit in the rest of the row
 	unique_values = []
 	for j, col in enumerate(problem[x]):
 		if j != y and problem[x, j] == ' ':
-			possible_values = return_poss_for_element(x, j,  characters, block_size)
+			possible_values = return_poss_for_element(problem, x, j,  characters, block_size)
 			unique_values = list(np.unique(unique_values + possible_values))
 
 	return unique_values
 
 
-def cross_check_column(x, y, characters, block_size):
+def cross_check_column(problem, x, y, characters, block_size):
 	# return all the possible numbers that can fit in the rest of the column
 	unique_values = []
 	for i, element in enumerate(problem[:, y]):
 		if i != x and element == ' ':
-			possible_values = return_poss_for_element(i, y, characters, block_size)
+			possible_values = return_poss_for_element(problem, i, y, characters, block_size)
 			unique_values = list(np.unique(unique_values + possible_values))
 
 	return unique_values
 
 
-def cross_check_block(x, y, characters, block_size):
+def cross_check_block(problem, x, y, characters, block_size):
 	block_row_edge, block_col_edge = decide_block(x, y, block_size)
 	unique_values = []
 	for i in range(block_row_edge - block_size, block_row_edge):
 		for j in range(block_col_edge - block_size, block_col_edge):
 			# skip current element in the block
 			if not(i == x and j == y) and problem[i, j] == ' ':
-				possible_values = return_poss_for_element(i, j, characters, block_size)
+				possible_values = return_poss_for_element(problem, i, j, characters, block_size)
 				unique_values = list(np.unique(unique_values + possible_values))
 
 	return unique_values
 
 
-def check_naked_single(x, y, characters, block_size):
+def check_naked_single(problem, x, y, characters, block_size):
 	# check for case that all characters except one are in the same row, column and block
 	# note: see screenshot in folder for logic not included...
 	row = list(problem[x])
@@ -217,19 +188,19 @@ def check_naked_single(x, y, characters, block_size):
 	return [_ for _ in characters if _ not in combined_unique]
 
 
-def solve(characters, block_size):
+def solve(problem, characters, block_size):
 	counter = 0
 	for x, row in enumerate(problem):
 		for y, element in enumerate(row):
 			if element == ' ':
-				possible_values = return_poss_for_element(x, y, characters, block_size)
+				possible_values = return_poss_for_element(problem, x, y, characters, block_size)
 				# print(possible_values)
 				# now run through all possible values
 				# if for any one of them, it cannot fit in another place
 				# in any of the row, column or block, we place it in the current location
-				possible_elsewhere_in_row = cross_check_row(x, y, characters, block_size)
-				possible_elsewhere_in_col = cross_check_column(x, y, characters, block_size)
-				possible_elsewhere_in_block = cross_check_block(x, y, characters, block_size)
+				possible_elsewhere_in_row = cross_check_row(problem, x, y, characters, block_size)
+				possible_elsewhere_in_col = cross_check_column(problem, x, y, characters, block_size)
+				possible_elsewhere_in_block = cross_check_block(problem, x, y, characters, block_size)
 
 				# check which element of possible_values are not in the other lists
 				other_lists = [possible_elsewhere_in_row, possible_elsewhere_in_col, possible_elsewhere_in_block]
@@ -242,7 +213,7 @@ def solve(characters, block_size):
 				list_number = np.argwhere(np.any(not_in_other_lists, axis=1))
 				list_names = ["row", "column", "block"]
 
-				value = check_naked_single(x, y, characters, block_size)
+				value = check_naked_single(problem, x, y, characters, block_size)
 
 				# if there is a value that works, use it
 				# print(index)
@@ -261,6 +232,7 @@ def solve(characters, block_size):
 					counter += 1
 
 	print(f"Filled {counter} values...\n")
+	return problem
 
 	# ---------------------------------------------------------------------------------------------------------------
 
@@ -271,7 +243,7 @@ def line_intersection(h_line, v_line):
 	return x, y
 
 
-def filter_spatial_outliers(lines, line_orientation, tolerance=15):
+def filter_spatial_outliers(image, lines, line_orientation, tolerance=15):
 	sorted_lines = sorted(lines, key=lambda x: x[0][1] if line_orientation == 'h' else x[0][0])
 	sorted_values = [line[0][1] if line_orientation == 'h' else line[0][0] for line in sorted_lines]
 	distances = [abs(line[0][1] - prev_line[0][1]) if line_orientation == 'h' else abs(line[0][0] - prev_line[0][0]) for prev_line, line in zip(sorted_lines, sorted_lines[1:])]
@@ -343,7 +315,7 @@ def crop_center(image, ratio=0.8):
 	return image[y_offset:y_offset + ch, x_offset:x_offset + cw]
 
 
-def create_sudoku_image(img, grid_size):
+def create_sudoku_image(problem, img, grid_size):
 	block_size = int(grid_size ** (1 / 2))
 	# Create a blank image to draw the numbers on
 	image = np.zeros((500, 500, 3), dtype=np.uint8)
@@ -412,7 +384,7 @@ def centre_character(box):
 
 # define a function to count the most common element in an array
 # define a function to count the most common element in an array
-def most_common(arr):
+def most_common(characters, arr):
 	filtered_arr = [[x for x in list(elem) if x in characters] for elem in arr]  # take away extra characters
 	if len(filtered_arr) > 0:
 		filtered_arr = [x[0] for x in filtered_arr if len(x) > 0 ]  # in case a list is left (two possible characters were predicted in the same spot)
@@ -596,60 +568,15 @@ def edit_prediction_gui(original, grid_size):
 	return to_solve
 
 
-if __name__ == "__main__":
-	reader = easyocr.Reader(['en'], gpu=False)
-	reader2 = keras_ocr.recognition.Recognizer()
-	# the following is for direct manual input
-	# # check size of sudoku and find number of characters
-	# number_char = int(problem.shape[0])
-	# characters = POSSIBLE_CHARACTERS[0:number_char]
-	#
-	# if number_char < 16:
-	# 	characters = [str(int(ch) + 1) for ch in characters]
-	#
-	# # print(number_char)
-	# # print(characters)
-	# # block sizes
-	# block_size = int(number_char**(1/2))
-	#
-	#
-	# # ***** note: 3 in middle of third block (second row) is start
-	# # double check: go through first two rows, if two elements can possibly work in a space, move on
-	#
-	# t1 = time.time()
-	# while ' ' in np.unique(problem):
-	# 	solve(characters, block_size)
-	# 	# pprint(problem)
-	#
-	# # pprint(problem)
-	#
-	# f = open("Answer.txt", "w")
-	# f.write(str(problem))
-	# f.close()
-	#
-	# t2 = time.time()
-	#
-	# print(f"Done!! Finished in {round(t2 - t1, 2)} seconds"
+# solves the problem given either a numpy array of the problem or an image of the problem and a boolean input
+# indicating whether the input was manual or not
+def solve_sudoku(problem, manual_input):
 	t1 = time.time()
 
-	# image = cv2.resize(image, (1000, 1000), interpolation=cv2.INTER_LINEAR)  # ******** better size for generality?
-	# cv2.imshow("Image", image)
-	# cv2.waitKey(0)
-	# cv2.destroyAllWindows()
-	if not MANUAL_INPUT:
-		display_image(image)
-
+	if not manual_input:
+		image = problem
 		# Convert to grayscale
 		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-		# # attempt to thin lines to avoid double counting ************* maybe a checker for thick lines?
-		# kernel = np.ones((5, 5), np.uint8)
-		# gray_dilated = cv2.dilate(gray, kernel)
-		#
-		# display_image(gray_dilated, "Gray")
-		#
-		# # Apply Gaussian blur
-		# blur = cv2.GaussianBlur(gray_dilated, (5, 5), 0)
 
 		# Apply Gaussian blur
 		blur = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -658,13 +585,7 @@ if __name__ == "__main__":
 		edges = cv2.Canny(blur, 50, 150, apertureSize=3)
 		# edges = cv2.Canny(blur, 100, 200, apertureSize=3)
 
-		display_image(edges)
-
 		lines = cv2.HoughLinesP(edges, rho=1, theta=1*np.pi/180, threshold=100, minLineLength=100, maxLineGap=50)
-
-		# Count number of long lines
-		n_long_lines = len(lines)
-		# print(f'Number of lines: {n_long_lines}')
 
 		# Separate horizontal and vertical lines
 		horizontal_lines = []
@@ -682,8 +603,8 @@ if __name__ == "__main__":
 		vertical_lines = filter_duplicate_lines(vertical_lines, 'v', delta_rho=10, delta_theta=np.pi / 90)
 
 		# filter outliers
-		horizontal_lines = filter_spatial_outliers(horizontal_lines, 'h')
-		vertical_lines = filter_spatial_outliers(vertical_lines, 'v')
+		horizontal_lines = filter_spatial_outliers(image, horizontal_lines, 'h')
+		vertical_lines = filter_spatial_outliers(image, vertical_lines, 'v')
 
 		for i, line in enumerate(horizontal_lines):
 			x1, y1, x2, y2 = line[0]
@@ -692,11 +613,6 @@ if __name__ == "__main__":
 		for i, line in enumerate(vertical_lines):
 			x1, y1, x2, y2 = line[0]
 			cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 3)
-
-		display_image(image)
-
-		# print(f"Number of horizontal lines: {len(horizontal_lines)}")
-		# print(f"Number of vertical lines: {(len(vertical_lines))}")
 
 		# Find line intersections (grid corners)
 		intersections = []
@@ -710,16 +626,9 @@ if __name__ == "__main__":
 
 		num_intersections = len(intersections)
 
-		# print(horizontal_lines)
-		# print(vertical_lines)
-		# print(intersections)
-		# print(f"Number of intersections: {num_intersections}")
-
 		num_rows = int(num_intersections ** (1/2))
 		grid_size = num_rows - 1
-		print(f"Grid size: {grid_size}")
 		rows = [intersections[i:i + num_rows] for i in range(0, len(intersections), num_rows)]
-		# print(f"Number of rows: {num_rows}")
 
 		# Extract boxes from the grid
 		box_images = []
@@ -730,15 +639,6 @@ if __name__ == "__main__":
 				box_image = gray[y1:y2, x1:x2]
 				box_images.append(box_image)
 
-		# # # Display the cropped box images
-		# for i, box_image in enumerate(box_images):
-		# 	cv2.imshow(f'Box {i + 1}', box_image)
-		# 	cv2.waitKey(0)
-		# 	cv2.destroyAllWindows()
-
-		# num_processes = cpu_count()
-		print("Starting parallel processing")
-
 		original_stdout = sys.stdout
 		sys.stdout = io.StringIO()
 
@@ -748,10 +648,6 @@ if __name__ == "__main__":
 
 		sys.stdout = original_stdout
 
-		# text = []
-		# for box in tqdm(box_images):
-		# 	text.append(identify_character(box, reader, reader2))
-
 		characters = POSSIBLE_CHARACTERS[0:grid_size]
 		if grid_size < 16:
 			characters = [str(int(ch) + 1) for ch in characters]
@@ -759,56 +655,27 @@ if __name__ == "__main__":
 		text = [[x for x in list(elem) if x in characters] for elem in text]  # take away extra characters
 		text = [x[0] if len(x) > 0 else ' ' for x in text]  # in case a list is left (two possible characters were predicted in the same spot)
 
-		# print(cleaned)
-
 		problem = np.reshape(text, (grid_size, grid_size))
-		# pprint(problem)
 	else:
-		problem = np.zeros((GRID_SIZE, GRID_SIZE), dtype='<U1')
-		problem = np.where(problem == 0, '', problem)
-		grid_size = GRID_SIZE
+		grid_size = problem.shape[0]
 		characters = POSSIBLE_CHARACTERS[0:grid_size]
 		if grid_size < 16:
 			characters = [str(int(ch) + 1) for ch in characters]
-
-	problem = edit_prediction_gui(problem, grid_size)
-
-	problem = np.where(problem == '', ' ', problem)
-
-	original = np.copy(problem)
-
-	# pprint(problem)
-
-	# pprint(original)
-
-	# original_image = create_sudoku_image(original, grid_size)
-
-	# Display the image
-	# display_image(original_image)
 
 	solve_start = time.time()
 
 	block_size = int(grid_size ** (1 / 2))
 	while ' ' in np.unique(problem):
-		solve(characters, block_size)
-		# pprint(problem)
-
+		problem = solve(problem, characters, block_size)
 		solve_end = time.time()
 
 		if (solve_end - solve_start) > max_time(grid_size):
-			play_video_on_loop("Unsolvable.mp4")
+			print("Couldn't solve...")
 			sys.exit()
 
-	# pprint(problem)
-	t2 = time.time()
+	problem_solved = problem
+	# t2 = time.time()
+	# solve_end = time.time()
+	return problem_solved
 
-	solution = create_sudoku_image(original, grid_size)
-
-	solve_end = time.time()
-	print("Time to solve:", solve_end - solve_start)
-
-	print(f"Done!! Finished in {round(t2 - t1, 2)} seconds")
-
-	# Display the image
-	display_image(solution)
 

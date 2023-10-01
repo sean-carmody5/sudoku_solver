@@ -1,6 +1,6 @@
 import os
 from flask import Flask, render_template, request, jsonify
-from combined_solver
+from combined_solver import solve_sudoku
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
