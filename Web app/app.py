@@ -1,6 +1,6 @@
 import os
 from flask import Flask, render_template, request, jsonify
-from combined_solver import solve_sudoku
+from combined_solver import solve_sudoku_upload, solve_sudoku_manual_input
 import numpy as np
 
 app = Flask(__name__)
@@ -39,10 +39,14 @@ def solve():
 	manual_input = data['manual_input']
 
 	# Call the solve_sudoku function
-	solved_board = solve_sudoku(board, manual_input)
+	if not manual_input:
+		solved_board = solve_sudoku_upload()
+	else:
+		solved_board = solve_sudoku_manual_input(board)
 
 	# Convert the numpy array to a JSON array and return it
 	solved_board_list = solved_board.tolist()
+	print(solved_board_list)
 	return jsonify(solved_board=solved_board_list)
 
 

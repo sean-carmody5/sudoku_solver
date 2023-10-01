@@ -16,18 +16,21 @@ window.addEventListener('DOMContentLoaded', (event) => {
 
 
 manualInputBtn.addEventListener('click', () => {
+	console.log('Selected manual input');  // Debugging statement
     inputType = 'manual';
     highlight.style.left = '0';
     showManualInput();
 });
 
 photoUploadBtn.addEventListener('click', () => {
+	console.log('Selected photo upload');  // Debugging statement
     inputType = 'photo';
     highlight.style.left = '50%';
     showPhotoUpload();
 });
 
 solveBtn.addEventListener('click', async () => {
+	console.log('Solve button clicked');  // Debugging statement
     const board = getBoardData();  // Assume getBoardData is a function that retrieves the board data
     const manual_input = (inputType === 'manual');
     
@@ -159,6 +162,27 @@ function showPhotoUpload() {
             cache: false,
             contentType: false,
             processData: false
+        });
+    });
+}
+
+
+function getBoardData() {
+    const gridSize = Math.sqrt(document.querySelectorAll('.sudoku-cell').length);
+    let board = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+    document.querySelectorAll('.sudoku-row').forEach((row, i) => {
+        row.querySelectorAll('.sudoku-cell').forEach((cell, j) => {
+            board[i][j] = cell.value ? parseInt(cell.value) : 0;
+        });
+    });
+    return board;
+}
+
+
+function displaySolvedBoard(solvedBoard) {
+    document.querySelectorAll('.sudoku-row').forEach((row, i) => {
+        row.querySelectorAll('.sudoku-cell').forEach((cell, j) => {
+            cell.value = solvedBoard[i][j];
         });
     });
 }

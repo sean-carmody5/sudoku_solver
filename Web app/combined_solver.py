@@ -10,8 +10,10 @@ Logic:
 4) If there is a value in poss_values that is not contained in any single one of these, populate the empty element with this value.
 
 """
-
+import os
 import io
+import sys
+
 import easyocr
 import keras_ocr
 import numpy as np
@@ -570,97 +572,132 @@ def edit_prediction_gui(original, grid_size):
 
 # solves the problem given either a numpy array of the problem or an image of the problem and a boolean input
 # indicating whether the input was manual or not
-def solve_sudoku(problem, manual_input):
+def solve_sudoku_upload():
 	t1 = time.time()
 
-	if not manual_input:
-		image = problem
-		# Convert to grayscale
-		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+	# Specify the directory
+	directory = 'uploads'
 
-		# Apply Gaussian blur
-		blur = cv2.GaussianBlur(gray, (5, 5), 0)
+	# Get a list of all the files in the directory
+	files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
-		# Apply Canny edge detection
-		edges = cv2.Canny(blur, 50, 150, apertureSize=3)
-		# edges = cv2.Canny(blur, 100, 200, apertureSize=3)
+	# Check if there are any files in the directory
+	if files:
+		# Get the most recently modified file
+		latest_file = max(files, key=lambda f: os.path.getmtime(os.path.join(directory, f)))
 
-		lines = cv2.HoughLinesP(edges, rho=1, theta=1*np.pi/180, threshold=100, minLineLength=100, maxLineGap=50)
+		# Get the path to the most recently modified file
+		problem = os.path.join(directory, latest_file)
 
-		# Separate horizontal and vertical lines
-		horizontal_lines = []
-		vertical_lines = []
-
-		for line in lines:
-			x1, y1, x2, y2 = line[0]
-			if abs(y2 - y1) < abs(x2 - x1):  # horizontal lines
-				horizontal_lines.append(line)
-			else:  # vertical lines
-				vertical_lines.append(line)
-
-		# Remove duplicate horizontal and vertical lines
-		horizontal_lines = filter_duplicate_lines(horizontal_lines, 'h', delta_rho=10, delta_theta=np.pi / 90)
-		vertical_lines = filter_duplicate_lines(vertical_lines, 'v', delta_rho=10, delta_theta=np.pi / 90)
-
-		# filter outliers
-		horizontal_lines = filter_spatial_outliers(image, horizontal_lines, 'h')
-		vertical_lines = filter_spatial_outliers(image, vertical_lines, 'v')
-
-		for i, line in enumerate(horizontal_lines):
-			x1, y1, x2, y2 = line[0]
-			cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 3)
-
-		for i, line in enumerate(vertical_lines):
-			x1, y1, x2, y2 = line[0]
-			cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 3)
-
-		# Find line intersections (grid corners)
-		intersections = []
-		for h_line in horizontal_lines:
-			for v_line in vertical_lines:
-				intersection = line_intersection(h_line, v_line)
-				intersections.append(intersection)
-
-		# Sort intersections by row and column
-		intersections = sorted(intersections, key=lambda x: (x[1], x[0]))
-
-		num_intersections = len(intersections)
-
-		num_rows = int(num_intersections ** (1/2))
-		grid_size = num_rows - 1
-		rows = [intersections[i:i + num_rows] for i in range(0, len(intersections), num_rows)]
-
-		# Extract boxes from the grid
-		box_images = []
-		for i in range(num_rows - 1):
-			for j in range(num_rows - 1):
-				x1, y1 = rows[i][j]
-				x2, y2 = rows[i + 1][j + 1]
-				box_image = gray[y1:y2, x1:x2]
-				box_images.append(box_image)
-
-		original_stdout = sys.stdout
-		sys.stdout = io.StringIO()
-
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			# Parallelize the processing of box_images using threads
-			text = list(tqdm(executor.map(process_box, box_images), total=len(box_images)))
-
-		sys.stdout = original_stdout
-
-		characters = POSSIBLE_CHARACTERS[0:grid_size]
-		if grid_size < 16:
-			characters = [str(int(ch) + 1) for ch in characters]
-
-		text = [[x for x in list(elem) if x in characters] for elem in text]  # take away extra characters
-		text = [x[0] if len(x) > 0 else ' ' for x in text]  # in case a list is left (two possible characters were predicted in the same spot)
-
-		problem = np.reshape(text, (grid_size, grid_size))
 	else:
-		grid_size = problem.shape[0]
-		characters = POSSIBLE_CHARACTERS[0:grid_size]
-		if grid_size < 16:
-			characters = [str(int(ch) + 1) for ch in characters]
+		print(f'No files found in {directory}.')
+		sys.exit()
+
+	image = cv2.imread(problem)
+	# Convert to grayscale
+	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+	# Apply Gaussian blur
+	blur = cv2.GaussianBlur(gray, (5, 5), 0)
+
+	# Apply Canny edge detection
+	edges = cv2.Canny(blur, 50, 150, apertureSize=3)
+	# edges = cv2.Canny(blur, 100, 200, apertureSize=3)
+
+	lines = cv2.HoughLinesP(edges, rho=1, theta=1*np.pi/180, threshold=100, minLineLength=100, maxLineGap=50)
+
+	# Separate horizontal and vertical lines
+	horizontal_lines = []
+	vertical_lines = []
+
+	for line in lines:
+		x1, y1, x2, y2 = line[0]
+		if abs(y2 - y1) < abs(x2 - x1):  # horizontal lines
+			horizontal_lines.append(line)
+		else:  # vertical lines
+			vertical_lines.append(line)
+
+	# Remove duplicate horizontal and vertical lines
+	horizontal_lines = filter_duplicate_lines(horizontal_lines, 'h', delta_rho=10, delta_theta=np.pi / 90)
+	vertical_lines = filter_duplicate_lines(vertical_lines, 'v', delta_rho=10, delta_theta=np.pi / 90)
+
+	# filter outliers
+	horizontal_lines = filter_spatial_outliers(image, horizontal_lines, 'h')
+	vertical_lines = filter_spatial_outliers(image, vertical_lines, 'v')
+
+	for i, line in enumerate(horizontal_lines):
+		x1, y1, x2, y2 = line[0]
+		cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+
+	for i, line in enumerate(vertical_lines):
+		x1, y1, x2, y2 = line[0]
+		cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+
+	# Find line intersections (grid corners)
+	intersections = []
+	for h_line in horizontal_lines:
+		for v_line in vertical_lines:
+			intersection = line_intersection(h_line, v_line)
+			intersections.append(intersection)
+
+	# Sort intersections by row and column
+	intersections = sorted(intersections, key=lambda x: (x[1], x[0]))
+
+	num_intersections = len(intersections)
+
+	num_rows = int(num_intersections ** (1/2))
+	grid_size = num_rows - 1
+	rows = [intersections[i:i + num_rows] for i in range(0, len(intersections), num_rows)]
+
+	# Extract boxes from the grid
+	box_images = []
+	for i in range(num_rows - 1):
+		for j in range(num_rows - 1):
+			x1, y1 = rows[i][j]
+			x2, y2 = rows[i + 1][j + 1]
+			box_image = gray[y1:y2, x1:x2]
+			box_images.append(box_image)
+
+	original_stdout = sys.stdout
+	sys.stdout = io.StringIO()
+
+	with concurrent.futures.ThreadPoolExecutor() as executor:
+		# Parallelize the processing of box_images using threads
+		text = list(tqdm(executor.map(process_box, box_images), total=len(box_images)))
+
+	sys.stdout = original_stdout
+
+	characters = POSSIBLE_CHARACTERS[0:grid_size]
+	if grid_size < 16:
+		characters = [str(int(ch) + 1) for ch in characters]
+
+	text = [[x for x in list(elem) if x in characters] for elem in text]  # take away extra characters
+	text = [x[0] if len(x) > 0 else ' ' for x in text]  # in case a list is left (two possible characters were predicted in the same spot)
+
+	problem = np.reshape(text, (grid_size, grid_size))
+
+	solve_start = time.time()
+
+	block_size = int(grid_size ** (1 / 2))
+	while ' ' in np.unique(problem):
+		problem = solve(problem, characters, block_size)
+		solve_end = time.time()
+
+		if (solve_end - solve_start) > max_time(grid_size):
+			print("Couldn't solve...")
+			sys.exit()
+
+	problem_solved = problem
+	# t2 = time.time()
+	# solve_end = time.time()
+	return problem_solved
+
+
+def solve_sudoku_manual_input(problem):
+	grid_size = problem.shape[0]
+	characters = POSSIBLE_CHARACTERS[0:grid_size]
+	if grid_size < 16:
+		characters = [str(int(ch) + 1) for ch in characters]
 
 	solve_start = time.time()
 
