@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seán Carmody's Sudoku Solver</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+    <header>
+        <h1>Seán Carmody's Sudoku Solver</h1>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="selector">
+                <div class="selector-tab" id="manual-input-btn">
+                    Manual Input
+                    <span class="tooltip" id="tooltip-manual">Click here to manually input a Sudoku puzzle</span>
+                </div>
+                <div class="selector-tab" id="photo-upload-btn">
+                    Photo Upload
+                    <span class="tooltip" id="tooltip-photo">Click here to upload a photo of a Sudoku puzzle</span>
+                </div>
+                <div class="selector-highlight"></div>
+            </div>
+
+            <!-- Here you'll include the Sudoku input grid and photo upload input -->
+            <div id="input-section">
+                <!-- This will be filled by JavaScript based on the selection (manual input or photo upload) -->
+            </div>
+
+            <button id="solve-btn">Solve</button>
+            <div id="solution"></div>
+        </div>
+    </main>
+
+    <section class="author-section">
+        <h2>About the Author</h2>
+        <p>His name is Seán, he's pretty cool.</p>
+    </section>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</body>
+</html>
