@@ -28,12 +28,24 @@ photoUploadBtn.addEventListener('click', () => {
 });
 
 solveBtn.addEventListener('click', async () => {
-    if(inputType === 'manual'){
-        // You would handle solving the Sudoku puzzle entered manually here
-    } else if(inputType === 'photo'){
-        // You would handle solving the Sudoku puzzle from photo upload here
-    }
+    const board = getBoardData();  // Assume getBoardData is a function that retrieves the board data
+    const manual_input = (inputType === 'manual');
+    
+    const response = await fetch('/solve', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            board: board,
+            manual_input: manual_input,
+        }),
+    });
+    
+    const data = await response.json();
+    displaySolvedBoard(data.solved_board);  // Assume displaySolvedBoard is a function that displays the solved board
 });
+
 
 function showManualInput() {
     let inputSection = document.getElementById('input-section');

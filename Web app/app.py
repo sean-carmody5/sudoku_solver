@@ -32,7 +32,7 @@ def allowed_file(filename):
 		   filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/solve', methods=['POST'])
-def solve(problem, manual_bool):
+def solve():
 	# Assume the board is sent as a JSON array and manual_input as a boolean
 	data = request.get_json()
 	board = np.array(data['board'])
