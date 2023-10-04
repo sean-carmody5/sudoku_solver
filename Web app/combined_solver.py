@@ -685,7 +685,7 @@ def solve_sudoku_upload():
 
 		if (solve_end - solve_start) > max_time(grid_size):
 			print("Couldn't solve...")
-			sys.exit()
+			return None
 
 	problem_solved = problem
 	# t2 = time.time()

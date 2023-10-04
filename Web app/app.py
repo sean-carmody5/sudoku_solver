@@ -38,16 +38,30 @@ def solve():
 	board = np.array(data['board'])
 	manual_input = data['manual_input']
 
+	print(board)
+
 	# Call the solve_sudoku function
 	if not manual_input:
 		solved_board = solve_sudoku_upload()
 	else:
 		solved_board = solve_sudoku_manual_input(board)
 
-	# Convert the numpy array to a JSON array and return it
-	solved_board_list = solved_board.tolist()
-	print(solved_board_list)
-	return jsonify(solved_board=solved_board_list)
+	if solved_board is None:  # or any other condition indicating a failure
+		response = {
+			'success': False,
+			'error': 'Unable to solve the Sudoku.'
+		}
+	else:
+		solved_board_list = solved_board.tolist()
+		grid_size = len(solved_board_list)
+		print(solved_board_list)
+		response = {
+			'success': True,
+			'solution': solved_board_list,
+			'grid_size': grid_size
+		}
+
+	return jsonify(response)
 
 
 if __name__ == '__main__':

@@ -30,8 +30,8 @@ photoUploadBtn.addEventListener('click', () => {
 });
 
 solveBtn.addEventListener('click', async () => {
-	console.log('Solve button clicked');  // Debugging statement
-    const board = getBoardData();  // Assume getBoardData is a function that retrieves the board data
+    console.log('Solve button clicked');  // Debugging statement
+    const board = getBoardData();  
     const manual_input = (inputType === 'manual');
     
     const response = await fetch('/solve', {
@@ -46,8 +46,20 @@ solveBtn.addEventListener('click', async () => {
     });
     
     const data = await response.json();
-    displaySolvedBoard(data.solved_board);  // Assume displaySolvedBoard is a function that displays the solved board
+
+    // Check if the response was successful
+    if (data.success) {
+        // Only generate the grid if in photo upload mode
+        if (!manual_input) {
+            let gridSize = data.grid_size;
+            generateGrid(gridSize);  // Generate the Sudoku grid based on the received size
+        }
+        displaySolvedBoard(data.solution);  // Populate the grid with the solution
+    } else {
+        alert('Failed to solve the Sudoku: ' + data.error);
+    }
 });
+
 
 
 function showManualInput() {
@@ -169,10 +181,10 @@ function showPhotoUpload() {
 
 function getBoardData() {
     const gridSize = Math.sqrt(document.querySelectorAll('.sudoku-cell').length);
-    let board = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+    let board = Array(gridSize).fill().map(() => Array(gridSize).fill(' '));
     document.querySelectorAll('.sudoku-row').forEach((row, i) => {
         row.querySelectorAll('.sudoku-cell').forEach((cell, j) => {
-            board[i][j] = cell.value ? parseInt(cell.value) : 0;
+            board[i][j] = cell.value ? parseInt(cell.value) : ' ';
         });
     });
     return board;
