@@ -16,6 +16,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 
 
 manualInputBtn.addEventListener('click', () => {
+	clearSolutionAndMessage();
 	console.log('Selected manual input');  // Debugging statement
     inputType = 'manual';
     highlight.style.left = '0';
@@ -30,6 +31,7 @@ photoUploadBtn.addEventListener('click', () => {
 });
 
 solveBtn.addEventListener('click', async () => {
+	clearSolutionAndMessage();
     console.log('Solve button clicked');  // Debugging statement
     const board = getBoardData();  
     const manual_input = (inputType === 'manual');
@@ -217,4 +219,18 @@ function displaySolvedBoard(solvedBoard) {
             cell.value = solvedBoard[i][j];
         });
     });
+}
+
+function clearSolutionAndMessage() {
+    // Clear the solution grid
+    let gridContainer = document.getElementById('sudoku-grid-container');
+    if (gridContainer) {
+        gridContainer.innerHTML = '';
+    }
+
+    // Hide the success message
+    let successMessage = document.getElementById('upload-success');
+    if (successMessage) {
+        successMessage.style.display = 'none';
+    }
 }
