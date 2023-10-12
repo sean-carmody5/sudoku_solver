@@ -192,7 +192,9 @@ function showPhotoUpload() {
 	// Add an empty sudoku-grid-container
     let gridContainer = document.createElement('div');
     gridContainer.id = 'sudoku-grid-container';
-    document.body.appendChild(gridContainer);
+    let container = document.querySelector('.container');
+	container.insertBefore(gridContainer, solveBtn);
+
 }
 
 
