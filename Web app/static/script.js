@@ -51,6 +51,7 @@ solveBtn.addEventListener('click', async () => {
     if (data.success) {
         // Only generate the grid if in photo upload mode
         if (!manual_input) {
+			console.log("Attempting to generate grid for photo upload");
             let gridSize = data.grid_size;
             generateGrid(gridSize);  // Generate the Sudoku grid based on the received size
         }
@@ -95,7 +96,18 @@ function updateActiveButton(buttonId) {
 }
 
 function generateGrid(gridSize) {
+	console.log("Generating grid with size:", gridSize);
     let gridContainer = document.getElementById('sudoku-grid-container');
+	
+	    // Check if gridContainer is not null
+    if (!gridContainer) {
+        console.error("sudoku-grid-container not found in the DOM.");
+        return;
+    }
+	
+	// Clear any existing grid
+    gridContainer.innerHTML = '';
+	
     let boxSize = Math.sqrt(gridSize);
 
     // Determine cell size and gap based on grid size
@@ -176,6 +188,11 @@ function showPhotoUpload() {
             processData: false
         });
     });
+	
+	// Add an empty sudoku-grid-container
+    let gridContainer = document.createElement('div');
+    gridContainer.id = 'sudoku-grid-container';
+    document.body.appendChild(gridContainer);
 }
 
 
@@ -192,6 +209,7 @@ function getBoardData() {
 
 
 function displaySolvedBoard(solvedBoard) {
+	console.log("Populating grid with solution:", solvedBoard);
     document.querySelectorAll('.sudoku-row').forEach((row, i) => {
         row.querySelectorAll('.sudoku-cell').forEach((cell, j) => {
             cell.value = solvedBoard[i][j];
